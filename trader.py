@@ -20,6 +20,7 @@ import psycopg2
 import requests
 import json
 from datetime import datetime
+import sys
 
 class StockScraper():
     def __init__(self):
@@ -29,7 +30,7 @@ class StockScraper():
         pass
     
     def connect_to_central(self):
-        conn = psycopg2.connect("dbname='atlas' user='postgres' host='127.0.0.1' password='postgres'")
+        conn = psycopg2.connect("dbname='atlas' user='postgres' host='127.0.0.1' password='gismogt2000'")
         return conn
 
     def give_me_a_cursor(self, conn):
@@ -322,8 +323,7 @@ class StockScraper():
                 conn.rollback()
                 conn.close()
                 return e
-        else:
-            print "..."
+
         conn.close()
     def build_table_insert_statement(self, stock_name, stocks_dict):
         table_columns = []
@@ -369,10 +369,15 @@ class StockScraper():
             conn.close()
             return 0
         except psycopg2.Error as e:
-            print e
-            conn.rollback()
-            conn.close()
-            return e   
+            if 'already exists' in str(e):
+                conn.rollback()
+                conn.close()
+                return e                   
+            else:
+                print e
+                conn.rollback()
+                conn.close()
+                return e   
 
     def build_tables(self, stock_name, stocks_dict):
         insert_statement = self.build_table_insert_statement(stock_name, stocks_dict) 
@@ -393,32 +398,6 @@ class StockScraper():
         stocks_dict = {}
         stocks_dict = self.build_stock_object_dict(stock, stocks_dict)
         self.build_database_stock_tables(stocks_dict)
-              
-        while True:
-            returndata = self.build_stock_object_dict(stock, stocks_dict)
-            self.update_stock_obeject(stock, stocks_dict)
-            print returndata
-            time.sleep(5)
-            
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        returndata = self.build_stock_object_dict(stock, stocks_dict)
+        self.update_stock_obeject(stock, stocks_dict)
+        sys.exit(0)

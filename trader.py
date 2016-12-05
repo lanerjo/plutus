@@ -30,7 +30,7 @@ class StockScraper():
         pass
     
     def connect_to_central(self):
-        conn = psycopg2.connect("dbname='atlas' user='postgres' host='127.0.0.1' password='gismogt2000'")
+        conn = psycopg2.connect("dbname='atlas' user='postgres' host='127.0.0.1' password=''")
         return conn
 
     def give_me_a_cursor(self, conn):

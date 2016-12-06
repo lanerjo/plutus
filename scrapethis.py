@@ -14,10 +14,17 @@ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABI
 CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 DEALINGS IN THE SOFTWARE.
 """
-
-import time
 import multiprocessing
+import numpy as np
+from datetime import datetime
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import pandas.io.sql as psql
+import pandas.util.testing as tm; tm.N = 3
+import pandas as pd
+import psycopg2
 from trader import StockScraper
+import time
 import requests
 
 def get_stocks(chunk_size):
@@ -68,6 +75,73 @@ def get_stocks(chunk_size):
                 continue
     return stocks
 
+class ChartData(object):
+    
+    def __init__(self, stock, hours):
+        self.stock = stock
+        self.seconds = hours * 60 * 60
+        self.limit = float(self.seconds) / 12
+        self.limit = int(self.limit)
+        pass
+
+    def get_data(self):
+        conn = psycopg2.connect("dbname='atlas' user='postgres' host='localhost' password=''")
+        cur = conn.cursor()     
+        
+        stock_index = self.stock.lower()     
+        if stock_index == "true":
+            return
+        if stock_index == "cast":
+            return
+        if stock_index == "else":
+            return      
+        if stock_index == "to":
+            return  
+        get_data = """WITH t AS (SELECT lasttradedatetime,lasttradeprice FROM """ + stock_index + """ ORDER BY lasttradedatetime DESC LIMIT """ + str(self.limit) + """)
+        SELECT * FROM t where lasttradeprice !=0.0 ORDER BY lasttradedatetime ASC;"""        
+        dataframe = psql.read_sql_query(get_data, conn,'lasttradedatetime', parse_dates=True)
+        
+        mean = dataframe.mean().sum()
+        percent_change = dataframe.pct_change(1).sum() 
+        min = str(dataframe.min()).split()[1]
+        max =  str(dataframe.max()).split()[1]
+        minutes = self.limit * 12 / 60
+        hours = self.limit * 12 / 60 /60
+        no_errors = True
+        
+        
+        print_statement = stock_index + " \n"
+        
+        if str(mean).split()[0] != "nan":        
+            print_statement += str(mean).split()[0] + " \n"
+        else:
+            no_errors = False
+            
+        if str(percent_change).split()[1] != "0.0" and str(percent_change).split()[1] != "NaN":
+            print_statement += str(percent_change).split()[1] + " \n"
+        else:
+            no_errors = False
+            
+        if min != "NaN":
+            print_statement += min + " \n"
+        else:
+            no_errors = False
+        
+        if max != "NaN":
+            print_statement += max + " \n"
+        else:
+            no_errors = False
+        
+        if no_errors == True:
+            print_statement += str(self.limit) + " \n"
+            print_statement +=  str(minutes) + " \n"
+            print_statement +=  str(hours) + " \n"
+            print_statement +=  " \n"
+        
+            #print print_statement
+        return self
+
+
 
 if __name__ == '__main__':
     
@@ -76,46 +150,40 @@ if __name__ == '__main__':
     
     running_process_list = []
     failed_processes = []
-    for chunked_list in stocks:
-        jobs = []
-        print "starting collection jobs for"
-        print chunked_list
-        for stock in chunked_list:
-            if stock not in running_process_list:
-                d = multiprocessing.Process(name=stock, target=stck.worker_start, args=(str(stock),))
-                d.daemon = True
-                d.start()                
-                running_process_list.append(stock)       
-                jobs.append(d)
-            else:
-                print "nothing right now"
-
-        while jobs:  
-            for index, j in enumerate(jobs):
-                j.join()
+    print "Start Batch Processing"
+    while True:
+        for chunked_list in stocks:
+            jobs = []
+            for stock in chunked_list:
+                if stock not in running_process_list:
+                    d = multiprocessing.Process(name=stock, target=stck.worker_start, args=(str(stock),))
+                    d.daemon = True
+                    d.start()                
+                    running_process_list.append(stock)       
+                    jobs.append(d)
+    
+            while jobs:  
                 
-                if j.exitcode == 0:
-                    jobs.pop(index)
-                    print '%s.exitcode = %s' % (j.name, j.exitcode)
-                else:
-                    if j.exitcode == 1:
+                for index, j in enumerate(jobs):
+                    j.join()
+                    
+                    if j.exitcode == 0:
                         jobs.pop(index)
-                    print '%s.exitcode = %s' % (j.name, j.exitcode)
-            
-            if not jobs:
-                break
-        print "Jobs are done"
-#    while True:
-#        length_of_stocks = len(stocks)
+                        #print '%s.exitcode = %s' % (j.name, j.exitcode)
+                    else:
+                        if j.exitcode == 1:
+                            jobs.pop(index)
+                        #print '%s.exitcode = %s' % (j.name, j.exitcode)
+                
+                if not jobs:
+                    break
+                
+        #for stock in stocks:
+        #    for chuck_item in stock:
+        #        stock_charter = ChartData(chuck_item.lower(), 5)
+        #        stock_charter.get_data()
+                                
         
-
-#        for stock in stocks:
-                    #for item in stocks_dict[stock]:
-                    #    print stock, item, stocks_dict[stock][item]
-    
-
-#        while True:
-#            print "Getting Data"
-#            time.sleep(10)
-    
+        print "Jobs are done"
+        time.sleep(1)
 

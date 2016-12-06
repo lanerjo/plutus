@@ -191,96 +191,120 @@ class StockScraper():
         return stocks_dict
 
     def update_stock_obeject(self, stock, stocks_dict):
+        
         conn = self.connect_to_central()
         cur = self.give_me_a_cursor(conn)
         stocks_dict[stock]["lasttradedatetime"]
-
+        
+        skip = False
         date = stocks_dict[stock]["lasttradedatetime"].replace("T"," ").replace("Z", "") 
 
         if date:
             date_object = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
         else:
-            date_object = datetime.now()
+            skip = True
 
         if stocks_dict[stock]["idg"]: 
             idg = stocks_dict[stock]["idg"]
         else:
-            idg=0
+            skip = True
 
         if stocks_dict[stock]["stocksymbol"]:
             stocksymbol = stocks_dict[stock]["stocksymbol"]
         else:
-            stocksymbol = "NONE"
+            skip = True
 
         if stocks_dict[stock]["index"]:
             index = stocks_dict[stock]["index"]
         else:
-            index="NONE"
+            skip = True
 
         if stocks_dict[stock]["lasttradeprice"]:
             lasttradeprice = stocks_dict[stock]["lasttradeprice"]
         else:
-            lasttradeprice=0
+            skip = True
 
         if stocks_dict[stock]["lasttradewithcurrency"]:  
             lasttradewithcurrency = stocks_dict[stock]["lasttradewithcurrency"]
         else:
-            lasttradewithcurrency=0
+            skip = True
 
         if stocks_dict[stock]["dividend"]:
             dividend = stocks_dict[stock]["dividend"]
         else:
-            dividend=0
+            skip = True
 
         if stocks_dict[stock]["yields"]:   
             yields = stocks_dict[stock]["yields"]
         else:
-            yields=0
+            skip = True
 
         if stocks_dict[stock]["lasttradesize"]:
             lasttradesize = stocks_dict[stock]["lasttradesize"]
         else:
-            lasttradesize=0
+            skip = True
 
         if stocks_dict[stock]["change"]:
             change = stocks_dict[stock]["change"]
         else:
-            change=0
+            skip = True
 
         if stocks_dict[stock]["changepercent"]:
             changepercent = stocks_dict[stock]["changepercent"]
         else:
-            changepercent=0
+            skip = True
 
         if stocks_dict[stock]["exthrslasttradeprice"]:
             exthrslasttradeprice = stocks_dict[stock]["exthrslasttradeprice"]
         else:
-            exthrslasttradeprice=0
+            skip = True
 
         if stocks_dict[stock]["exthrslasttradewithcurrency"]:
             exthrslasttradewithcurrency = stocks_dict[stock]["exthrslasttradewithcurrency"]
         else:
-            exthrslasttradewithcurrency=0
+            skip = True
 
         if stocks_dict[stock]["exthrschange"]:   
             exthrschange = stocks_dict[stock]["exthrschange"]
         else:
-            exthrschange=0
+            skip = True
 
         if stocks_dict[stock]["exthrschangepercent"]:
             exthrschangepercent = stocks_dict[stock]["exthrschangepercent"]
         else:
-            exthrschangepercent=0
+            skip = True
 
         if stocks_dict[stock]["perciouscloseprice"]:
             perciouscloseprice = stocks_dict[stock]["perciouscloseprice"]
         else:
-            perciouscloseprice=0
+            skip = True
+        
+        if skip == True:
+            conn.close()
+            return
+        
+        if stock.lower() == "true":
+            conn.close()
+            return
+        
+        if stock.lower() == "cast":
+            conn.close()
+            return
+        
+        if stock.lower() == "else":
+            conn.close()
+            return      
+        
+        if stock.lower() == "to":
+            conn.close()
+            return  
 
         sql_search = ("""SELECT * from %s WHERE lasttradedatetime='%s'"""  %(stock, str(date_object)) )
+        
         cur.execute(sql_search)
 
         if not cur.fetchone():
+            
             sql_insert = ("""INSERT INTO %s (idg, 
                                             stocksymbol,
                                             index,
@@ -333,6 +357,20 @@ class StockScraper():
                 if stock_item not in table_columns:
                     table_columns.append(str(stock_item).lower())
 
+
+        if stock_name.lower() == "true":
+            return
+        
+        if stock_name.lower() == "cast":
+            return
+        
+        if stock_name.lower() == "else":
+            return
+        
+        if stock_name.lower() == "to":
+            return  
+
+
 #        number_of_columns = len(table_columns)
         insert_statement = ""
 
@@ -369,12 +407,17 @@ class StockScraper():
             conn.close()
             return 0
         except psycopg2.Error as e:
+            
             if 'already exists' in str(e):
                 conn.rollback()
                 conn.close()
                 return e                   
+                
+            elif "can't execute an empty query" in e:
+                conn.rollback()
+                conn.close()                    
+                return
             else:
-                print e
                 conn.rollback()
                 conn.close()
                 return e   
@@ -387,6 +430,7 @@ class StockScraper():
     def build_database_stock_tables(self, stocks_dict):
         for stock_name in stocks_dict:
             self.build_tables(stock_name, stocks_dict)
+            
         return "success"
 
     def build_stock_object_dict(self, stocks, stocks_dict):
@@ -395,6 +439,7 @@ class StockScraper():
         return stocks_dict
     
     def worker_start(self, stock):  
+        
         stocks_dict = {}
         stocks_dict = self.build_stock_object_dict(stock, stocks_dict)
         self.build_database_stock_tables(stocks_dict)
